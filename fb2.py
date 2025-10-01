@@ -71,6 +71,42 @@ def solve_system(D, ZR, Rc, K, method='lm'):
         print(f"Решение не найдено. Сообщение: {solution.message}")
         return None
 
+def equations_center(vars, Rc, K, A, B, C):
+    """
+    Система уравнений:
+    1. z = f(x) уравнение кривой второго порядка
+    2. z = g(x) уравнение оси внеосевой апертуры
+    """
+    xx, zz = vars
+    
+    # Вычисляем вычислим невязку zz - z(x) в точке xx
+    eq1 = zz - z(xx, Rc, K)
+    eq2 = A*xx + B*zz + C  # уравнение прямой    
+    
+    return [eq1, eq2]
+
+def solve_center(D, ZR, Rc, K, method='lm'):
+    """
+    Решение системы уравнений.
+    """
+    x1, x2 = solve_system(D, ZR, Rc, K, method)
+    z1, z2 = z(x1, Rc, K), z(x2, Rc, K)
+    A = x2 - x1
+    B = z1 - z2
+    C = -(A * (x1 + x2) / 2 + B * (z1 + z2) / 2)
+
+    # Начальное приближение
+    initial_guess = [ZR, z(ZR, Rc, K)]
+    
+    # Решаем систему уравнений
+    solution = root(equations_center, initial_guess, args=(Rc, K, A, B, C), method=method)
+    
+    if solution.success:
+        return solution.x
+    else:
+        print(f"Решение не найдено. Сообщение: {solution.message}")
+        return None
+
 def radians_to_dms(radians, decimals=2):
     """
     Преобразует угол из радианов в строку формата "градусы° минуты' секунды""
@@ -132,12 +168,17 @@ if __name__ == "__main__":
     ZR = 166.0
     
     result = solve_system(D, ZR, Rc, K)
-    
+    center = solve_center(D, ZR, Rc, K)
+
     if result is not None:
         x1_sol, x2_sol = result
+        XC, ZC = center if center is not None else (None, None)
+
         print(f"Решение найдено:")
         print(f"x1 = {x1_sol:.6f}")
         print(f"x2 = {x2_sol:.6f}")
+        if XC is not None and ZC is not None:
+            print(f"Координаты центра апертуры: XC = {XC:.6f}, ZC = {ZC:.6f}\nПроверка решения: z(XC) = {z(XC, Rc, K):.6f}")
         
         # Проверка решения
         z1 = z(x1_sol, Rc, K)
@@ -168,7 +209,7 @@ if __name__ == "__main__":
         print(f"\nДополнительная информация:")
         print(f"z(x1) = {z1:.6f}")
         print(f"z(x2) = {z2:.6f}")
-        print(f"Координаты центра: ({x_center:.6f}, {z_center:.6f})")
+        print(f"Координаты центра отрезка: ({x_center:.6f}, {z_center:.6f})")
         print(f"Вектор нормали: ({nx:.6f}, {nz:.6f})")
         print(f"Угол наклона: {radians_to_dms(np.arctan((z2-z1)/(x2_sol-x1_sol)))}")
     else:
