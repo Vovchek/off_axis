@@ -30,7 +30,7 @@ def equations(vars, D, ZR, Rc, K):
     dx = x2 - x1
     dz = z2 - z1
     
-    nx = -dx  # Перпендикуляр к направлению отрезка
+    nx = dx  # Перпендикуляр к направлению отрезка
     nz = dz
     
     # Уравнение прямой, проходящей через центр и перпендикулярной отрезку:
@@ -79,7 +79,7 @@ def equations_center(vars, Rc, K, A, B, C):
     """
     xx, zz = vars
     
-    # Вычисляем вычислим невязку zz - z(x) в точке xx
+    # Вычисляем невязку zz - z(x) в точке xx
     eq1 = zz - z(xx, Rc, K)
     eq2 = A*xx + B*zz + C  # уравнение прямой    
     
@@ -91,9 +91,15 @@ def solve_center(D, ZR, Rc, K, method='lm'):
     """
     x1, x2 = solve_system(D, ZR, Rc, K, method)
     z1, z2 = z(x1, Rc, K), z(x2, Rc, K)
+
+    # Координаты центра отрезка
+    x_center = (x1 + x2) / 2
+    z_center = (z1 + z2) / 2
+
+    # уравнение прямой, проходящей через центр и перпендикулярной отрезку:
     A = x2 - x1
-    B = z1 - z2
-    C = -(A * (x1 + x2) / 2 + B * (z1 + z2) / 2)
+    B = z2 - z1
+    C = -(A * x_center + B * z_center)
 
     # Начальное приближение
     initial_guess = [ZR, z(ZR, Rc, K)]
@@ -177,8 +183,6 @@ if __name__ == "__main__":
         print(f"Решение найдено:")
         print(f"x1 = {x1_sol:.6f}")
         print(f"x2 = {x2_sol:.6f}")
-        if XC is not None and ZC is not None:
-            print(f"Координаты центра апертуры: XC = {XC:.6f}, ZC = {ZC:.6f}\nПроверка решения: z(XC) = {z(XC, Rc, K):.6f}")
         
         # Проверка решения
         z1 = z(x1_sol, Rc, K)
@@ -193,13 +197,16 @@ if __name__ == "__main__":
         dx = x2_sol - x1_sol
         dz = z2 - z1
         length = np.sqrt(dx**2 + dz**2)
-        nx = -dx / length if length > 0 else 1
+        nx = dx / length if length > 0 else 1
         nz = dz / length if length > 0 else 0
         A = nx
         B = nz
         C = -(nx * x_center + nz * z_center)
         calculated_distance = abs(C) / np.sqrt(A**2 + B**2)
-        
+        dxc, dzc = XC - x_center, ZC - z_center
+        length_c = np.sqrt(dxc**2 + dzc**2)
+        dx_c, dz_c = dxc / length_c, dzc / length_c
+
         print(f"\nПроверка решений:")
         print(f"Заданное расстояние D = {D:.6f}")
         print(f"Фактическое расстояние между точками = {actual_distance:.6f}")
@@ -210,7 +217,10 @@ if __name__ == "__main__":
         print(f"z(x1) = {z1:.6f}")
         print(f"z(x2) = {z2:.6f}")
         print(f"Координаты центра отрезка: ({x_center:.6f}, {z_center:.6f})")
-        print(f"Вектор нормали: ({nx:.6f}, {nz:.6f})")
-        print(f"Угол наклона: {radians_to_dms(np.arctan((z2-z1)/(x2_sol-x1_sol)))}")
+        print(f"Координаты центра апертуры: XC = {XC:.6f}, ZC = {ZC:.6f}\nПроверка решения: z(XC) = {z(XC, Rc, K):.6f}")
+        print(f"Вектор нормали: ({dx_c:.6f}, {dz_c:.6f})")
+        print(f"Вектор направления: ({dx/length:.6f}, {dz/length:.6f})")
+        print(f"Ортогональность векторов: {dx_c*dx + dz_c*dz:.6f} (должно быть ~0)")
+        print(f"Угол наклона: {radians_to_dms(np.arctan(dz/dx))}")
     else:
         print("Решение не найдено. Попробуйте другие параметры или метод решения.")
